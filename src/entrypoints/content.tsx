@@ -249,6 +249,7 @@ function FloatingButton() {
     };
     
     await addMarker(marker);
+    browser.runtime.sendMessage({ type: 'OPEN_SIDE_PANEL' }).catch(console.error);
 
     highlightRange(range);
     

@@ -4,7 +4,7 @@ import { browser } from 'wxt/browser';
 import { GotoMessage, GotoResponse } from '../../lib/messaging';
 
 export default function App() {
-  const { markers, activeChatUrl, init, removeMarker } = useStore();
+  const { markers, activeChatUrl, init, removeMarker, editMarker } = useStore();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,13 +49,36 @@ export default function App() {
       )}
 
       {markers.length === 0 ? (
-        <div className="text-gray-500 text-sm italic">
+        <div className="text-gray-500 text-sm">
           No markers saved for this chat. Select text and click "Mark" to add one!
         </div>
       ) : (
         <ul className="space-y-3">
           {markers.map((marker) => (
             <li key={marker.id} className="bg-white p-3 rounded-md shadow-sm border border-gray-200">
+              {!marker.heading ? (
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Name this marker:</label>
+                  <input
+                    type="text"
+                    className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:border-blue-500"
+                    placeholder="e.g., Important API fix"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        editMarker(marker.id, e.currentTarget.value.trim() || 'Untitled');
+                      }
+                    }}
+                    onBlur={(e) => {
+                      if (e.currentTarget.value.trim()) {
+                        editMarker(marker.id, e.currentTarget.value.trim());
+                      }
+                    }}
+                    autoFocus
+                  />
+                </div>
+              ) : (
+                <h3 className="font-bold text-gray-800 text-sm mb-1">{marker.heading}</h3>
+              )}
               <p className="text-sm text-gray-700 line-clamp-3 mb-3">
                 "{marker.text}"
               </p>

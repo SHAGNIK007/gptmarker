@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Marker } from '../../types/marker';
-import { getMarkers, subscribeToMarkers, deleteMarker } from '../../lib/storage';
+import { getMarkers, subscribeToMarkers, deleteMarker, updateMarker } from '../../lib/storage';
 import { browser } from 'wxt/browser';
 
 interface SidePanelState {
@@ -8,6 +8,7 @@ interface SidePanelState {
   activeChatUrl: string | null;
   init: () => () => void;
   removeMarker: (id: string) => Promise<void>;
+  editMarker: (id: string, heading: string) => Promise<void>;
 }
 
 export const useStore = create<SidePanelState>((set, get) => {
@@ -64,6 +65,10 @@ export const useStore = create<SidePanelState>((set, get) => {
 
     removeMarker: async (id: string) => {
       await deleteMarker(id);
+    },
+
+    editMarker: async (id: string, heading: string) => {
+      await updateMarker(id, { heading });
     }
   };
 });

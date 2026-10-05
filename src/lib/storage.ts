@@ -27,6 +27,12 @@ export async function deleteMarker(id: string): Promise<void> {
   await storage.setItem(MARKERS_KEY, updated);
 }
 
+export async function updateMarker(id: string, updates: Partial<Marker>): Promise<void> {
+  const current = await getMarkers();
+  const updated = current.map(m => (m.id === id ? { ...m, ...updates } : m));
+  await storage.setItem(MARKERS_KEY, updated);
+}
+
 export function subscribeToMarkers(callback: (markers: Marker[]) => void) {
   return storage.watch<Marker[]>(MARKERS_KEY, (newMarkers) => {
     callback(newMarkers || []);

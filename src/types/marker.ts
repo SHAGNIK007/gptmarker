@@ -7,6 +7,7 @@ export const MarkerSchema = z.object({
   before: z.string(),
   after: z.string(),
   createdAt: z.number(),
+  heading: z.string().optional(),
 });
 
 export type Marker = z.infer<typeof MarkerSchema>;
