@@ -1,1 +1,7 @@
-export default defineBackground(() => {});
+import { browser } from 'wxt/browser';
+
+export default defineBackground(() => {
+
+  // @ts-ignore
+  browser.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
+});

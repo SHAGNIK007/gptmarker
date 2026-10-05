@@ -4,6 +4,12 @@ export default defineConfig({
   outDir: 'dist',
   manifest: {
     permissions: ["storage", "sidePanel"],
-    host_permissions: ["https://chatgpt.com/*"]
+    host_permissions: ["https://chatgpt.com/*"],
+    action: { default_title: 'Open chat-marker' }
+  },
+  dev: {
+    server: {
+      port: 3000
+    }
   }
 });
