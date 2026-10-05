@@ -11,29 +11,21 @@ function getTextNodes(root: Node): Text[] {
 }
 
 export function createAnchor(range: Range): { text: string, before: string, after: string } {
-  const text = range.toString();
-  const docRoot = range.commonAncestorContainer.ownerDocument?.body || document.body;
-  const allTextNodes = getTextNodes(docRoot);
+  const docRoot = document.body;
   
-  let fullString = '';
-  let startIndex = -1;
-  let endIndex = -1;
+  const startRange = document.createRange();
+  try {
+    startRange.setStart(docRoot, 0);
+    startRange.setEnd(range.startContainer, range.startOffset);
+  } catch (e) {
+    return { text: range.toString(), before: '', after: '' };
+  }
   
-  for (const node of allTextNodes) {
-    if (node === range.startContainer) {
-      startIndex = fullString.length + range.startOffset;
-    }
-    if (node === range.endContainer) {
-      endIndex = fullString.length + range.endOffset;
-    }
-    fullString += node.textContent || '';
-  }
-
-  // Fallbacks if start/end aren't directly in text nodes (e.g. if the selection was an element)
-  // To keep it simple and robust, we assume the selection ends up on text nodes as is typical.
-  if (startIndex === -1 || endIndex === -1) {
-    return { text, before: '', after: '' };
-  }
+  const startIndex = (startRange.cloneContents().textContent || '').length;
+  const text = range.cloneContents().textContent || '';
+  const endIndex = startIndex + text.length;
+  
+  const fullString = docRoot.textContent || '';
   
   const before = fullString.substring(Math.max(0, startIndex - 30), startIndex);
   const after = fullString.substring(endIndex, endIndex + 30);
@@ -53,22 +45,48 @@ export function findAnchor(root: HTMLElement, marker: Pick<Marker, 'text' | 'bef
     fullString += node.textContent || '';
   }
   
-  let matchIndex = -1;
-  
-  // Try before + text + after first
+  let startIndex = -1;
+  let endIndex = -1;
+
+  // 1. Try exact match with context
   const exactString = marker.before + marker.text + marker.after;
   const exactMatch = fullString.indexOf(exactString);
   if (exactMatch !== -1) {
-    matchIndex = exactMatch + marker.before.length;
+    startIndex = exactMatch + marker.before.length;
+    endIndex = startIndex + marker.text.length;
   } else {
-    // Fallback to text alone
-    matchIndex = fullString.indexOf(marker.text);
+    // 2. Fallback to text alone
+    const textMatch = fullString.indexOf(marker.text);
+    if (textMatch !== -1) {
+      startIndex = textMatch;
+      endIndex = startIndex + marker.text.length;
+    } else {
+      // 3. Fuzzy fallback (ignore whitespace)
+      const strippedChars: string[] = [];
+      const originalIndices: number[] = [];
+      // strip all common whitespace and zero-width characters
+      const wsRegex = /[\s\u200B-\u200D\uFEFF]/;
+      for (let i = 0; i < fullString.length; i++) {
+        if (!wsRegex.test(fullString[i])) {
+          strippedChars.push(fullString[i]);
+          originalIndices.push(i);
+        }
+      }
+      
+      const strippedText = marker.text.replace(/[\s\u200B-\u200D\uFEFF]/g, '');
+      if (strippedText.length > 0) {
+        const strippedFullString = strippedChars.join('');
+        const strippedMatch = strippedFullString.indexOf(strippedText);
+        
+        if (strippedMatch !== -1) {
+          startIndex = originalIndices[strippedMatch];
+          endIndex = originalIndices[strippedMatch + strippedText.length - 1] + 1;
+        }
+      }
+    }
   }
   
-  if (matchIndex === -1) return null;
-  
-  const startIndex = matchIndex;
-  const endIndex = matchIndex + marker.text.length;
+  if (startIndex === -1 || endIndex === -1) return null;
   
   function getPosition(index: number): { node: Text; offset: number } | null {
     for (let i = map.length - 1; i >= 0; i--) {

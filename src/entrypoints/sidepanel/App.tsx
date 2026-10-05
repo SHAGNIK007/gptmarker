@@ -20,8 +20,8 @@ export default function App() {
         const message: GotoMessage = { type: 'GOTO_MARKER', id };
         const res = await browser.tabs.sendMessage(tabs[0].id, message) as GotoResponse;
         if (!res || !res.ok) {
-          setErrorMsg('Text not found on page.');
-          setTimeout(() => setErrorMsg(null), 3000);
+          setErrorMsg('Text not found. (If it is an older message, try scrolling up to load it!)');
+          setTimeout(() => setErrorMsg(null), 4000);
         }
       }
     } catch (e) {

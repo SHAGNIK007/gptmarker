@@ -87,24 +87,36 @@ async function restoreHighlights() {
 }
 
 function highlightRange(range: Range) {
-  const root = range.commonAncestorContainer;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-  
-  const nodesToWrap: Text[] = [];
-  let node;
-  while ((node = walker.nextNode())) {
-    if (range.intersectsNode(node)) {
-      nodesToWrap.push(node as Text);
+  try {
+    const root = range.commonAncestorContainer;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    
+    const nodesToWrap: Text[] = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      if (range.intersectsNode(node)) {
+        nodesToWrap.push(node as Text);
+      }
     }
-  }
 
-  if (nodesToWrap.length > 0) {
-    if (nodesToWrap[0] === range.startContainer) {
-      nodesToWrap[0] = nodesToWrap[0].splitText(range.startOffset);
-    }
-    const lastNode = nodesToWrap[nodesToWrap.length - 1];
-    if (lastNode === range.endContainer) {
-      lastNode.splitText(range.endOffset);
+    if (nodesToWrap.length === 0) return;
+
+    if (nodesToWrap.length === 1) {
+      const textNode = nodesToWrap[0];
+      const startOffset = range.startContainer === textNode ? range.startOffset : 0;
+      const endOffset = range.endContainer === textNode ? range.endOffset : textNode.length;
+      
+      const middle = textNode.splitText(startOffset);
+      middle.splitText(endOffset - startOffset);
+      nodesToWrap[0] = middle;
+    } else {
+      if (nodesToWrap[0] === range.startContainer) {
+        nodesToWrap[0] = nodesToWrap[0].splitText(range.startOffset);
+      }
+      const lastNode = nodesToWrap[nodesToWrap.length - 1];
+      if (lastNode === range.endContainer) {
+        lastNode.splitText(range.endOffset);
+      }
     }
     
     for (const textNode of nodesToWrap) {
@@ -115,6 +127,8 @@ function highlightRange(range: Range) {
       textNode.parentNode?.insertBefore(mark, textNode);
       mark.appendChild(textNode);
     }
+  } catch (e) {
+    console.error('[chat-marker]', e);
   }
 }
 
@@ -126,68 +140,85 @@ async function handleGotoMarker(id: string): Promise<GotoResponse> {
   const range = findAnchor(document.body, marker);
   if (!range) return { ok: false };
 
-  const span = document.createElement('span');
-  range.insertNode(span);
-  span.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  span.remove();
+  const el = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE 
+    ? range.commonAncestorContainer as Element 
+    : range.commonAncestorContainer.parentElement;
+  
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 
   flashHighlight(range);
   return { ok: true };
 }
 
 function flashHighlight(range: Range) {
-  const root = range.commonAncestorContainer;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-  
-  const nodesToWrap: Text[] = [];
-  let node;
-  while ((node = walker.nextNode())) {
-    if (range.intersectsNode(node)) {
-      nodesToWrap.push(node as Text);
+  try {
+    const root = range.commonAncestorContainer;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    
+    const nodesToWrap: Text[] = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      if (range.intersectsNode(node)) {
+        nodesToWrap.push(node as Text);
+      }
     }
-  }
 
-  if (nodesToWrap.length === 0) return;
+    if (nodesToWrap.length === 0) return;
 
-  if (nodesToWrap[0] === range.startContainer) {
-    nodesToWrap[0] = nodesToWrap[0].splitText(range.startOffset);
-  }
-  const lastNode = nodesToWrap[nodesToWrap.length - 1];
-  if (lastNode === range.endContainer) {
-    lastNode.splitText(range.endOffset);
-  }
-  
-  const marks: HTMLElement[] = [];
-  for (const textNode of nodesToWrap) {
-    if (!textNode.textContent?.trim()) continue;
-    const mark = document.createElement('mark');
-    mark.style.backgroundColor = 'rgba(251, 191, 36, 0.8)';
-    mark.style.color = 'inherit';
-    mark.style.transition = 'background-color 1.5s ease-out';
-    textNode.parentNode?.insertBefore(mark, textNode);
-    mark.appendChild(textNode);
-    marks.push(mark);
-  }
+    if (nodesToWrap.length === 1) {
+      const textNode = nodesToWrap[0];
+      const startOffset = range.startContainer === textNode ? range.startOffset : 0;
+      const endOffset = range.endContainer === textNode ? range.endOffset : textNode.length;
+      
+      const middle = textNode.splitText(startOffset);
+      middle.splitText(endOffset - startOffset);
+      nodesToWrap[0] = middle;
+    } else {
+      if (nodesToWrap[0] === range.startContainer) {
+        nodesToWrap[0] = nodesToWrap[0].splitText(range.startOffset);
+      }
+      const lastNode = nodesToWrap[nodesToWrap.length - 1];
+      if (lastNode === range.endContainer) {
+        lastNode.splitText(range.endOffset);
+      }
+    }
+    
+    const marks: HTMLElement[] = [];
+    for (const textNode of nodesToWrap) {
+      if (!textNode.textContent?.trim()) continue;
+      const mark = document.createElement('mark');
+      mark.style.backgroundColor = 'rgba(251, 191, 36, 0.8)';
+      mark.style.color = 'inherit';
+      mark.style.transition = 'background-color 1.5s ease-out';
+      textNode.parentNode?.insertBefore(mark, textNode);
+      mark.appendChild(textNode);
+      marks.push(mark);
+    }
 
-  requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      marks.forEach(mark => {
-        mark.style.backgroundColor = 'transparent';
+      requestAnimationFrame(() => {
+        marks.forEach(mark => {
+          mark.style.backgroundColor = 'transparent';
+        });
       });
     });
-  });
 
-  setTimeout(() => {
-    marks.forEach(mark => {
-      const parent = mark.parentNode;
-      if (parent) {
-        while (mark.firstChild) {
-          parent.insertBefore(mark.firstChild, mark);
+    setTimeout(() => {
+      marks.forEach(mark => {
+        const parent = mark.parentNode;
+        if (parent) {
+          while (mark.firstChild) {
+            parent.insertBefore(mark.firstChild, mark);
+          }
+          parent.removeChild(mark);
         }
-        parent.removeChild(mark);
-      }
-    });
-  }, 1500);
+      });
+    }, 1500);
+  } catch (e) {
+    console.error('[chat-marker]', e);
+  }
 }
 
 function FloatingButton() {
